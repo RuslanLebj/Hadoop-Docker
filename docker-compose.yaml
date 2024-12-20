@@ -1,0 +1,87 @@
+version: '3'
+services:
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    environment:
+      - CLUSTER_NAME=hadoop-cluster
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+    hostname: namenode
+    ports:
+      - 9870:9870    # Web-интерфейс NameNode
+      - 9000:9000
+    volumes:
+      - namenode_data:/hadoop/dfs/namenode
+      - ./input:/input    # Для хранения файла передаваемого в HDFS
+      - ./src:/src    # Для хранения программы 
+    networks:
+      - hadoop
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+      - DATANODE_ENVIRONMENT_HADOOP_DATANODE_OPTS=-Xmx512m
+      - HDFS_CONF_dfs_replication=1
+    depends_on:
+      - namenode
+    hostname: datanode
+    ports:
+      - 9864:9864
+    volumes:
+      - datanode_data:/hadoop/dfs/datanode
+    networks:
+      - hadoop
+
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    container_name: resourcemanager
+    environment:
+      - CLUSTER_NAME=hadoop-cluster
+      - YARN_CONF_yarn_resourcemanager_resource-tracker-address=resourcemanager:8032
+      - YARN_CONF_yarn_resourcemanager_scheduler_address=resourcemanager:8030
+      - YARN_CONF_yarn_resourcemanager_address=resourcemanager:8032
+    hostname: resourcemanager
+    ports:
+      - 8088:8088 # Web-интерфейс ResourceManager
+      - 8032:8032
+    networks:
+      - hadoop
+
+  nodemanager:
+    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+    container_name: nodemanager
+    environment:
+      - CLUSTER_NAME=hadoop-cluster
+      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
+      - YARN_CONF_yarn_resourcemanager_resource-tracker-address=resourcemanager:8032
+    depends_on:
+      - resourcemanager
+    hostname: nodemanager
+    networks:
+      - hadoop
+
+  historyserver:
+    image: bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8
+    container_name: historyserver
+    environment:
+      - CLUSTER_NAME=hadoop-cluster
+    hostname: historyserver
+    ports:
+      - 8188:8188 # Web-интерфейс HistoryServer
+    volumes:
+      - historyserver_data:/hadoop/yarn/timeline
+    depends_on:
+      - resourcemanager
+    networks:
+      - hadoop
+
+networks:
+  hadoop:
+    driver: bridge
+
+volumes:
+  namenode_data:
+  datanode_data:
+  historyserver_data:
